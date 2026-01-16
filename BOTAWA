@@ -2,10 +2,9 @@ repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 
--- ===== DELTA REQUEST FIX =====
+-- ===== REQUEST (DELTA SAFE) =====
 local function Request(data)
     if http_request then
         return http_request(data)
@@ -13,85 +12,73 @@ local function Request(data)
         return request(data)
     elseif syn and syn.request then
         return syn.request(data)
-    else
-        warn("NO REQUEST FUNCTION")
     end
 end
 
 -- ================= CONFIG =================
 _G.AwaaBot = {
     Webhook = "",
-    Enabled = true,
-    TierEnabled = {
-        Common=false,Rare=false,Epic=false,
-        Legendary=false,Mythic=false,Secret=false
-    }
+    Tier = {
+        Common=false, Rare=false, Epic=false,
+        Legendary=false, Mythic=false, Secret=false
+    },
+    SentCache = {} -- 1 SERVER ONLY
 }
 
 -- ================= TIER CHECK =================
 local function TierAllowed(tier)
-    for _,v in pairs(_G.AwaaBot.TierEnabled) do
-        if v then return _G.AwaaBot.TierEnabled[tier] end
+    local any = false
+    for _,v in pairs(_G.AwaaBot.Tier) do
+        if v then any = true end
     end
-    return true
+    if not any then return true end
+    return _G.AwaaBot.Tier[tier] == true
 end
 
 -- ================= SEND WEBHOOK =================
-function SendWebhook(fish, weight, tier)
+local function SendWebhook(fish, weight, tier)
     if _G.AwaaBot.Webhook == "" then return end
     if not TierAllowed(tier) then return end
 
-    local payload = {
-        username = "Awaa Bot",
-        content = "**🎣 Fish Detected!**",
-        embeds = {{
-            title = fish,
-            color = 16744448,
-            fields = {
-                {name="Weight",value=tostring(weight),inline=true},
-                {name="Tier",value=tier,inline=true},
-                {name="Player",value=Player.Name,inline=false}
-            }
-        }}
-    }
+    local key = fish.."|"..weight.."|"..tier
+    if _G.AwaaBot.SentCache[key] then return end
+    _G.AwaaBot.SentCache[key] = true
 
-    local res = Request({
+    Request({
         Url = _G.AwaaBot.Webhook,
         Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode(payload)
+        Headers = {["Content-Type"]="application/json"},
+        Body = HttpService:JSONEncode({
+            username = "Awaa Bot",
+            embeds = {{
+                title = "🎣 Fish Obtained",
+                color = 16744448,
+                fields = {
+                    {name="Fish", value=fish, inline=true},
+                    {name="Weight", value=tostring(weight), inline=true},
+                    {name="Tier", value=tier, inline=true},
+                    {name="Player", value=Player.Name, inline=false}
+                }
+            }}
+        })
     })
-
-    if res and res.StatusCode == 204 or res.StatusCode == 200 then
-        print("[Awaa Bot] Webhook SENT")
-    else
-        warn("[Awaa Bot] Webhook FAILED")
-    end
 end
 
--- ================= RUNNING LOOP =================
-task.spawn(function()
-    while _G.AwaaBot.Enabled do
-        task.wait(1)
-        -- script tetap hidup
-    end
-end)
-
--- ================= FISH DETECTION (SAFE) =================
+-- ================= FISH DETECT =================
 local function ScanBackpack()
-    for _,v in pairs(Player.Backpack:GetChildren()) do
-        if v:IsA("Tool") then
-            local tier = v:FindFirstChild("Tier")
-            local weight = v:FindFirstChild("Weight")
+    for _,tool in ipairs(Player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            local tier = tool:FindFirstChild("Tier")
+            local weight = tool:FindFirstChild("Weight")
             if tier and weight then
-                SendWebhook(v.Name, weight.Value, tostring(tier.Value))
+                SendWebhook(tool.Name, weight.Value, tostring(tier.Value))
             end
         end
     end
 end
 
 Player.Backpack.ChildAdded:Connect(function()
-    task.wait(0.3)
+    task.wait(0.2)
     ScanBackpack()
 end)
 
@@ -100,16 +87,17 @@ local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.32,0.38)
-frame.Position = UDim2.fromScale(0.34,0.3)
+frame.Size = UDim2.fromScale(0.34,0.45)
+frame.Position = UDim2.fromScale(0.33,0.28)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BackgroundTransparency = 0.25
 frame.Active = true
 frame.Draggable = true
 
+-- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(1,0.15)
-title.Text = "Awaa Bot (RUNNING)"
+title.Size = UDim2.fromScale(1,0.12)
+title.Text = "Awaa Bot (1 SERVER MODE)"
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.BackgroundColor3 = Color3.fromRGB(180,70,40)
@@ -118,32 +106,48 @@ title.TextColor3 = Color3.new(1,1,1)
 -- WEBHOOK BOX
 local box = Instance.new("TextBox", frame)
 box.PlaceholderText = "Discord Webhook URL"
-box.Size = UDim2.fromScale(0.9,0.15)
-box.Position = UDim2.fromScale(0.05,0.2)
+box.Size = UDim2.fromScale(0.9,0.12)
+box.Position = UDim2.fromScale(0.05,0.15)
 box.TextSize = 14
 box.ClearTextOnFocus = false
 box.BackgroundColor3 = Color3.fromRGB(40,40,40)
 box.TextColor3 = Color3.new(1,1,1)
 
-box:GetPropertyChangedSignal("Text"):Connect(function()
-    box.TextSize = math.clamp(18 - (#box.Text/12), 10, 14)
-end)
-
 box.FocusLost:Connect(function()
     _G.AwaaBot.Webhook = box.Text
 end)
 
--- TEST BUTTON (REAL)
+-- TEST BUTTON
 local test = Instance.new("TextButton", frame)
-test.Size = UDim2.fromScale(0.9,0.15)
-test.Position = UDim2.fromScale(0.05,0.38)
-test.Text = "TEST DISCORD WEBHOOK"
+test.Size = UDim2.fromScale(0.9,0.1)
+test.Position = UDim2.fromScale(0.05,0.3)
+test.Text = "TEST WEBHOOK"
 test.TextSize = 13
 test.BackgroundColor3 = Color3.fromRGB(200,90,50)
 test.TextColor3 = Color3.new(1,1,1)
 
 test.MouseButton1Click:Connect(function()
-    SendWebhook("AWAA BOT TEST", 999, "Mythic")
+    SendWebhook("TEST FISH", 100, "Mythic")
 end)
 
-print("[Awaa Bot] FULLY LOADED")
+-- TIER TOGGLES
+local tiers = {"Common","Rare","Epic","Legendary","Mythic","Secret"}
+for i,t in ipairs(tiers) do
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.fromScale(0.42,0.08)
+    b.Position = UDim2.fromScale(i%2==1 and 0.05 or 0.53, 0.43 + math.floor((i-1)/2)*0.085)
+    b.Text = t.." : OFF"
+    b.TextSize = 12
+    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    b.TextColor3 = Color3.new(1,1,1)
+
+    b.MouseButton1Click:Connect(function()
+        _G.AwaaBot.Tier[t] = not _G.AwaaBot.Tier[t]
+        b.Text = t.." : "..(_G.AwaaBot.Tier[t] and "ON" or "OFF")
+        b.BackgroundColor3 = _G.AwaaBot.Tier[t]
+            and Color3.fromRGB(200,90,50)
+            or Color3.fromRGB(60,60,60)
+    end)
+end
+
+print("[Awaa Bot] Tier selectable + One server mode active")
