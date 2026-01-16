@@ -85,47 +85,48 @@ local function StartAuto()
     end)
 end
 
---================================
--- UI (SAFE VERSION)
---================================
+    -- UI SAFE MOBILE FIX
 local gui = Instance.new("ScreenGui")
 gui.Name = "AwaaBotUI"
 gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
-gui.Parent = PlayerGui -- ⬅️ FIX UTAMA
+gui.Parent = PlayerGui
 
 local frame = Instance.new("Frame")
 frame.Parent = gui
-frame.Size = UDim2.new(0, 320, 0, 190)
-frame.Position = UDim2.new(0.5, -160, 0.5, -95)
+frame.Size = UDim2.fromScale(0.45, 0.4) -- AUTO SCALE
+frame.Position = UDim2.fromScale(0.52, 0.05) -- KANAN ATAS
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.Active = true
 frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+-- UI SCALE (PENTING HP)
+local scale = Instance.new("UIScale", frame)
+scale.Scale = 0.9
 
 -- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, -20, 0, 35)
-title.Position = UDim2.new(0, 10, 0, 5)
+title.Size = UDim2.fromScale(1, 0.18)
 title.BackgroundTransparency = 1
 title.Text = "Awaa Bot"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 18
+title.TextScaled = true
 
 -- CLOSE
 local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.new(0, 26, 0, 26)
-closeBtn.Position = UDim2.new(1, -34, 0, 6)
+closeBtn.Size = UDim2.fromScale(0.12, 0.18)
+closeBtn.Position = UDim2.fromScale(0.86, 0)
 closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(160,0,0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
 closeBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", closeBtn)
 
 -- MINIMIZE
 local miniBtn = Instance.new("TextButton", frame)
-miniBtn.Size = UDim2.new(0, 26, 0, 26)
-miniBtn.Position = UDim2.new(1, -66, 0, 6)
+miniBtn.Size = UDim2.fromScale(0.12, 0.18)
+miniBtn.Position = UDim2.fromScale(0.72, 0)
 miniBtn.Text = "-"
 miniBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
 miniBtn.TextColor3 = Color3.new(1,1,1)
@@ -133,55 +134,45 @@ Instance.new("UICorner", miniBtn)
 
 -- WEBHOOK BOX
 local box = Instance.new("TextBox", frame)
-box.Size = UDim2.new(1, -20, 0, 40)
-box.Position = UDim2.new(0, 10, 0, 50)
-box.PlaceholderText = "Paste Discord Webhook URL"
+box.Size = UDim2.fromScale(0.9, 0.25)
+box.Position = UDim2.fromScale(0.05, 0.25)
+box.PlaceholderText = "Discord Webhook"
 box.ClearTextOnFocus = false
 box.TextWrapped = true
+box.TextScaled = true
 box.BackgroundColor3 = Color3.fromRGB(45,45,45)
 box.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", box)
 
 -- START
 local startBtn = Instance.new("TextButton", frame)
-startBtn.Size = UDim2.new(1, -20, 0, 40)
-startBtn.Position = UDim2.new(0, 10, 0, 100)
+startBtn.Size = UDim2.fromScale(0.9, 0.22)
+startBtn.Position = UDim2.fromScale(0.05, 0.55)
 startBtn.Text = "START AUTO"
 startBtn.BackgroundColor3 = Color3.fromRGB(90,0,150)
 startBtn.TextColor3 = Color3.new(1,1,1)
-startBtn.Font = Enum.Font.GothamBold
+startBtn.TextScaled = true
 Instance.new("UICorner", startBtn)
 
 -- STATUS
 local status = Instance.new("TextLabel", frame)
-status.Size = UDim2.new(1, -20, 0, 25)
-status.Position = UDim2.new(0, 10, 0, 145)
+status.Size = UDim2.fromScale(1, 0.15)
+status.Position = UDim2.fromScale(0, 0.8)
 status.BackgroundTransparency = 1
 status.TextColor3 = Color3.fromRGB(0,255,0)
-status.Font = Enum.Font.Gotham
-status.TextSize = 12
+status.Text = ""
+status.TextScaled = true
 
--- LOGIC
-startBtn.MouseButton1Click:Connect(function()
-    if box.Text ~= "" then
-        WEBHOOK_URL = box.Text
-        StartAuto()
-        status.Text = "AUTO ACTIVE ✅"
-        startBtn.Text = "RUNNING"
-    else
-        status.Text = "Webhook kosong!"
-        status.TextColor3 = Color3.fromRGB(255,0,0)
-    end
-end)
-
+-- MINIMIZE LOGIC
 miniBtn.MouseButton1Click:Connect(function()
     frame.Visible = false
     local open = Instance.new("TextButton", gui)
-    open.Size = UDim2.new(0, 130, 0, 40)
-    open.Position = UDim2.new(0, 10, 0.5, -20)
+    open.Size = UDim2.fromScale(0.25, 0.08)
+    open.Position = UDim2.fromScale(0.7, 0.5)
     open.Text = "Open Awaa Bot"
     open.BackgroundColor3 = Color3.fromRGB(90,0,150)
     open.TextColor3 = Color3.new(1,1,1)
+    open.TextScaled = true
     Instance.new("UICorner", open)
 
     open.MouseButton1Click:Connect(function()
