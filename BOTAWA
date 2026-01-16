@@ -1,153 +1,180 @@
-repeat task.wait() until game:IsLoaded()
+--==================================================
+--  AWAA BOT v2 - Fish It (FULL UPGRADE)
+--==================================================
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
-local Player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- ===== REQUEST (DELTA SAFE) =====
-local function Request(data)
-    if http_request then
-        return http_request(data)
-    elseif request then
-        return request(data)
-    elseif syn and syn.request then
-        return syn.request(data)
-    end
-end
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local JobId = string.sub(game.JobId,1,8)
 
--- ================= CONFIG =================
-_G.AwaaBot = {
-    Webhook = "",
-    Tier = {
-        Common=false, Rare=false, Epic=false,
-        Legendary=false, Mythic=false, Secret=false
-    },
-    SentCache = {} -- 1 SERVER ONLY
+--================ CONFIG =================--
+local WEBHOOK_URL = "ISI_WEBHOOK_DISCORD_KAMU"
+
+local EnabledRarity = {
+    Common = false,
+    Uncommon = false,
+    Rare = false,
+    Epic = false,
+    Legendary = true,
+    Mythic = true,
+    Secret = true
 }
 
--- ================= TIER CHECK =================
-local function TierAllowed(tier)
-    local any = false
-    for _,v in pairs(_G.AwaaBot.Tier) do
-        if v then any = true end
-    end
-    if not any then return true end
-    return _G.AwaaBot.Tier[tier] == true
-end
-
--- ================= SEND WEBHOOK =================
-local function SendWebhook(fish, weight, tier)
-    if _G.AwaaBot.Webhook == "" then return end
-    if not TierAllowed(tier) then return end
-
-    local key = fish.."|"..weight.."|"..tier
-    if _G.AwaaBot.SentCache[key] then return end
-    _G.AwaaBot.SentCache[key] = true
-
-    Request({
-        Url = _G.AwaaBot.Webhook,
+--================ UTILS =================--
+local function SafeRequest(data)
+    local req = syn and syn.request or http_request or request
+    if not req then return end
+    req({
+        Url = WEBHOOK_URL,
         Method = "POST",
         Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode({
-            username = "Awaa Bot",
-            embeds = {{
-                title = "🎣 Fish Obtained",
-                color = 16744448,
-                fields = {
-                    {name="Fish", value=fish, inline=true},
-                    {name="Weight", value=tostring(weight), inline=true},
-                    {name="Tier", value=tier, inline=true},
-                    {name="Player", value=Player.Name, inline=false}
-                }
-            }}
-        })
+        Body = HttpService:JSONEncode(data)
     })
 end
 
--- ================= FISH DETECT =================
-local function ScanBackpack()
-    for _,tool in ipairs(Player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            local tier = tool:FindFirstChild("Tier")
-            local weight = tool:FindFirstChild("Weight")
-            if tier and weight then
-                SendWebhook(tool.Name, weight.Value, tostring(tier.Value))
+local function GetMapName()
+    return game:GetService("Workspace").CurrentCamera:FindFirstChild("MapName") and
+           game.Workspace.CurrentCamera.MapName.Value or "Unknown Map"
+end
+
+--================ WEBHOOK =================--
+local function SendWebhook(player, fish, weight, rarity)
+    if not EnabledRarity[rarity] then return end
+
+    SafeRequest({
+        username = "AWAA BOT",
+        embeds = {{
+            title = "🎣 Fish Detected!",
+            color = 7506394,
+            fields = {
+                {name="Player", value=player, inline=true},
+                {name="Fish", value=fish, inline=true},
+                {name="Rarity", value=rarity, inline=true},
+                {name="Weight", value=tostring(weight), inline=true},
+                {name="Map", value=GetMapName(), inline=true},
+                {name="Server", value=JobId, inline=true}
+            },
+            footer = {text="Fish It | AWAA BOT"}
+        }}
+    })
+end
+
+--================ FISH DETECTOR =================--
+local function ParseFishData(data)
+    if typeof(data) ~= "table" then return end
+
+    local fish = data.FishName or data.Name or data.fish or "Unknown"
+    local rarity = data.Rarity or data.rarity or "Unknown"
+    local weight = data.Weight or data.weight or "?"
+
+    local player =
+        typeof(data.Player) == "Instance" and data.Player.Name or
+        data.PlayerName or
+        "Unknown"
+
+    SendWebhook(player, fish, weight, rarity)
+end
+
+-- Scan RemoteEvents
+for _,v in pairs(ReplicatedStorage:GetDescendants()) do
+    if v:IsA("RemoteEvent") then
+        v.OnClientEvent:Connect(function(...)
+            for _,arg in pairs({...}) do
+                ParseFishData(arg)
             end
-        end
+        end)
     end
 end
 
-Player.Backpack.ChildAdded:Connect(function()
-    task.wait(0.2)
-    ScanBackpack()
-end)
-
--- ================= UI =================
-local gui = Instance.new("ScreenGui", Player.PlayerGui)
-gui.ResetOnSpawn = false
-
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.34,0.45)
-frame.Position = UDim2.fromScale(0.33,0.28)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.BackgroundTransparency = 0.25
-frame.Active = true
-frame.Draggable = true
-
--- TITLE
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(1,0.12)
-title.Text = "Awaa Bot (1 SERVER MODE)"
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.BackgroundColor3 = Color3.fromRGB(180,70,40)
-title.TextColor3 = Color3.new(1,1,1)
-
--- WEBHOOK BOX
-local box = Instance.new("TextBox", frame)
-box.PlaceholderText = "Discord Webhook URL"
-box.Size = UDim2.fromScale(0.9,0.12)
-box.Position = UDim2.fromScale(0.05,0.15)
-box.TextSize = 14
-box.ClearTextOnFocus = false
-box.BackgroundColor3 = Color3.fromRGB(40,40,40)
-box.TextColor3 = Color3.new(1,1,1)
-
-box.FocusLost:Connect(function()
-    _G.AwaaBot.Webhook = box.Text
-end)
-
--- TEST BUTTON
-local test = Instance.new("TextButton", frame)
-test.Size = UDim2.fromScale(0.9,0.1)
-test.Position = UDim2.fromScale(0.05,0.3)
-test.Text = "TEST WEBHOOK"
-test.TextSize = 13
-test.BackgroundColor3 = Color3.fromRGB(200,90,50)
-test.TextColor3 = Color3.new(1,1,1)
-
-test.MouseButton1Click:Connect(function()
-    SendWebhook("TEST FISH", 100, "Mythic")
-end)
-
--- TIER TOGGLES
-local tiers = {"Common","Rare","Epic","Legendary","Mythic","Secret"}
-for i,t in ipairs(tiers) do
-    local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.fromScale(0.42,0.08)
-    b.Position = UDim2.fromScale(i%2==1 and 0.05 or 0.53, 0.43 + math.floor((i-1)/2)*0.085)
-    b.Text = t.." : OFF"
-    b.TextSize = 12
-    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    b.TextColor3 = Color3.new(1,1,1)
-
-    b.MouseButton1Click:Connect(function()
-        _G.AwaaBot.Tier[t] = not _G.AwaaBot.Tier[t]
-        b.Text = t.." : "..(_G.AwaaBot.Tier[t] and "ON" or "OFF")
-        b.BackgroundColor3 = _G.AwaaBot.Tier[t]
-            and Color3.fromRGB(200,90,50)
-            or Color3.fromRGB(60,60,60)
-    end)
+-- Fallback log scan (some Fish It builds use print)
+local oldPrint = print
+print = function(...)
+    for _,v in pairs({...}) do
+        if typeof(v)=="table" then
+            ParseFishData(v)
+        end
+    end
+    oldPrint(...)
 end
 
-print("[Awaa Bot] Tier selectable + One server mode active")
+--================ UI =================--
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "AWAA_BOT"
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,280,0,310)
+main.Position = UDim2.new(0.02,0,0.3,0)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.BackgroundTransparency = 0.25
+main.Active = true
+main.Draggable = true
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "AWAA BOT"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+
+-- Toggle Button Maker
+local y = 40
+local function Toggle(name)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(0.9,0,0,24)
+    b.Position = UDim2.new(0.05,0,0,y)
+    b.Text = name..": OFF"
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 12
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundTransparency = 0.2
+
+    b.MouseButton1Click:Connect(function()
+        EnabledRarity[name] = not EnabledRarity[name]
+        b.Text = name..": "..(EnabledRarity[name] and "ON" or "OFF")
+    end)
+    y = y + 28
+end
+
+Toggle("Common")
+Toggle("Uncommon")
+Toggle("Rare")
+Toggle("Epic")
+Toggle("Legendary")
+Toggle("Mythic")
+Toggle("Secret")
+
+-- Test Webhook
+local test = Instance.new("TextButton", main)
+test.Size = UDim2.new(0.4,0,0,25)
+test.Position = UDim2.new(0.05,0,1,-60)
+test.Text = "Test Webhook"
+test.TextSize = 12
+test.MouseButton1Click:Connect(function()
+    SendWebhook(LocalPlayer.Name,"TEST FISH","999kg","Mythic")
+end)
+
+-- Minimize
+local mini = Instance.new("TextButton", main)
+mini.Size = UDim2.new(0.4,0,0,25)
+mini.Position = UDim2.new(0.55,0,1,-60)
+mini.Text = "Minimize"
+
+local minimized = false
+mini.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    main.Size = minimized and UDim2.new(0,200,0,35) or UDim2.new(0,280,0,310)
+end)
+
+-- Close
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0.9,0,0,22)
+close.Position = UDim2.new(0.05,0,1,-30)
+close.Text = "Close"
+close.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
