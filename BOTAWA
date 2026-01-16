@@ -1,6 +1,6 @@
 --================================
--- Fish It AUTO Webhook + UI
--- Mythic & Secret ONLY
+-- Awaa Bot - Fish It Auto Webhook
+-- Mythic & Secret Only
 --================================
 
 -- SERVICES
@@ -8,8 +8,13 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
 
--- WEBHOOK
+-- CONFIG
 local WEBHOOK_URL = ""
+local AUTO_RUNNING = false
+
+-- ICON IMAGE (GANTI JIKA PERLU)
+local ICON_IMAGE = "https://i.imgur.com/8QZ7ZQy.png" -- placeholder
+-- ⬆️ ganti dengan link gambar kamu
 
 -- TYPE COLOR
 local FishTypeColor = {
@@ -19,13 +24,13 @@ local FishTypeColor = {
 
 -- FORMAT WEIGHT
 local function GetWeight(tool)
-    if tool:FindFirstChild("Weight") then
+    if tool:FindFirstChild("Weight") and tool.Weight:IsA("NumberValue") then
         return string.format("%.2f kg", tool.Weight.Value)
     end
     return "Unknown"
 end
 
--- DETECT TYPE FROM NAME (EDIT JIKA PERLU)
+-- DETECT TYPE
 local function GetFishType(name)
     name = string.lower(name)
     if string.find(name, "secret") then
@@ -41,9 +46,9 @@ local function SendWebhook(fishName, fishWeight, fishType)
     if WEBHOOK_URL == "" then return end
 
     local data = {
-        username = "🎣 Fish It Logger",
+        username = "Awaa Bot",
         embeds = {{
-            title = "Fish Obtained!",
+            title = "🎣 Fish Obtained!",
             color = FishTypeColor[fishType],
             fields = {
                 { name = "👤 Player", value = Player.Name, inline = true },
@@ -66,20 +71,17 @@ local function SendWebhook(fishName, fishWeight, fishType)
     end
 end
 
--- AUTO DETECT FISH
-local function HookBackpack()
-    local Backpack = Player:WaitForChild("Backpack")
+-- AUTO DETECT
+local function StartAuto()
+    if AUTO_RUNNING then return end
+    AUTO_RUNNING = true
 
+    local Backpack = Player:WaitForChild("Backpack")
     Backpack.ChildAdded:Connect(function(tool)
         task.wait(0.2)
-
         local fishType = GetFishType(tool.Name)
         if fishType then
-            SendWebhook(
-                tool.Name,
-                GetWeight(tool),
-                fishType
-            )
+            SendWebhook(tool.Name, GetWeight(tool), fishType)
         end
     end)
 end
@@ -88,50 +90,109 @@ end
 -- UI
 --================================
 local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "FishItAutoUI"
+gui.Name = "AwaaBotUI"
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 320, 0, 180)
-frame.Position = UDim2.new(0.5, -160, 0.5, -90)
+frame.Size = UDim2.new(0, 340, 0, 220)
+frame.Position = UDim2.new(0.5, -170, 0.5, -110)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.Active = true
 frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+-- ICON
+local icon = Instance.new("ImageLabel", frame)
+icon.Size = UDim2.new(0, 40, 0, 40)
+icon.Position = UDim2.new(0, 10, 0, 10)
+icon.BackgroundTransparency = 1
+icon.Image = ICON_IMAGE
 
+-- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,40)
+title.Position = UDim2.new(0, 60, 0, 10)
+title.Size = UDim2.new(1, -120, 0, 40)
 title.BackgroundTransparency = 1
-title.Text = "AWAA FISH IT"
+title.Text = "Awaa Bot"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.TextSize = 18
+title.TextXAlignment = Left
 
+-- CLOSE BUTTON
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 10)
+closeBtn.Text = "✖"
+closeBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", closeBtn)
+
+-- MINIMIZE BUTTON
+local miniBtn = Instance.new("TextButton", frame)
+miniBtn.Size = UDim2.new(0, 30, 0, 30)
+miniBtn.Position = UDim2.new(1, -80, 0, 10)
+miniBtn.Text = "—"
+miniBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
+miniBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", miniBtn)
+
+-- WEBHOOK BOX
 local box = Instance.new("TextBox", frame)
-box.Size = UDim2.new(1,-20,0,40)
-box.Position = UDim2.new(0,10,0,55)
+box.Size = UDim2.new(1, -20, 0, 40)
+box.Position = UDim2.new(0, 10, 0, 70)
 box.PlaceholderText = "Paste Discord Webhook URL"
 box.ClearTextOnFocus = false
 box.TextWrapped = true
 box.BackgroundColor3 = Color3.fromRGB(40,40,40)
 box.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", box)
 
-Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
+-- START BUTTON
+local startBtn = Instance.new("TextButton", frame)
+startBtn.Size = UDim2.new(1, -20, 0, 40)
+startBtn.Position = UDim2.new(0, 10, 0, 130)
+startBtn.Text = "START AUTO"
+startBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 150)
+startBtn.TextColor3 = Color3.new(1,1,1)
+startBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", startBtn)
 
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(1,-20,0,40)
-btn.Position = UDim2.new(0,10,0,105)
-btn.Text = "START AUTO LOG"
-btn.BackgroundColor3 = Color3.fromRGB(90,0,150)
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.GothamBold
+-- STATUS
+local status = Instance.new("TextLabel", frame)
+status.Size = UDim2.new(1, -20, 0, 25)
+status.Position = UDim2.new(0, 10, 0, 180)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.fromRGB(0,255,0)
+status.Font = Enum.Font.Gotham
+status.TextSize = 12
 
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
-
-btn.MouseButton1Click:Connect(function()
+-- BUTTON LOGIC
+startBtn.MouseButton1Click:Connect(function()
     if box.Text ~= "" then
         WEBHOOK_URL = box.Text
-        HookBackpack()
-        btn.Text = "AUTO ACTIVE ✅"
+        StartAuto()
+        status.Text = "AUTO ACTIVE ✅"
+        startBtn.Text = "RUNNING"
     end
+end)
+
+miniBtn.MouseButton1Click:Connect(function()
+    frame.Visible = false
+
+    local reopen = Instance.new("TextButton", gui)
+    reopen.Size = UDim2.new(0, 120, 0, 40)
+    reopen.Position = UDim2.new(0, 10, 0.5, -20)
+    reopen.Text = "Open Awaa Bot"
+    reopen.BackgroundColor3 = Color3.fromRGB(90,0,150)
+    reopen.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", reopen)
+
+    reopen.MouseButton1Click:Connect(function()
+        frame.Visible = true
+        reopen:Destroy()
+    end)
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
 end)
