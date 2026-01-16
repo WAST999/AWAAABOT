@@ -1,5 +1,5 @@
 --==================================================
---  AWAA BOT v2.1 - Fish It (RED BLACK UI)
+-- AWAA BOT - MOBILE MAX (ALL FISH)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -9,72 +9,78 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local JobId = string.sub(game.JobId,1,8)
 
---================ WEBHOOK CONFIG =================--
-local WEBHOOK_CONFIG = {
-    Url = "ISI_WEBHOOK_DISCORD_KAMU",
-    Username = "AWAA BOT",
-    Avatar = "",
-    EmbedColor = 16711680
-}
-
---================ RARITY FILTER =================--
-local EnabledRarity = {
-    Common=false, Uncommon=false, Rare=false,
-    Epic=false, Legendary=true, Mythic=true, Secret=true
-}
-
 --================ WEBHOOK =================--
-local function Request(data)
-    local req = syn and syn.request or http_request or request
+local WEBHOOK_URL = "ISI_WEBHOOK_DISCORD_KAMU"
+
+local function sendWebhook(player, fish, weight, rarity)
+    local req = http_request or request or (syn and syn.request)
     if not req then return end
+
     req({
-        Url = WEBHOOK_CONFIG.Url,
+        Url = WEBHOOK_URL,
         Method = "POST",
         Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode(data)
+        Body = HttpService:JSONEncode({
+            username = "AWAA BOT",
+            embeds = {{
+                title = "🎣 Fish Detected",
+                color = 16711680,
+                fields = {
+                    {name="Player", value=player, inline=true},
+                    {name="Fish", value=fish, inline=true},
+                    {name="Rarity", value=rarity, inline=true},
+                    {name="Weight", value=tostring(weight), inline=true},
+                    {name="Server", value=JobId, inline=true}
+                },
+                footer = {text="Fish It | AWAA BOT"}
+            }}
+        })
     })
 end
 
-local function SendWebhook(player, fish, weight, rarity)
-    if not EnabledRarity[rarity] then return end
+--================ PARSER =================--
+local RARITY_LIST = {
+    "Common","Uncommon","Rare","Epic",
+    "Legendary","Mythic","Secret"
+}
 
-    Request({
-        username = WEBHOOK_CONFIG.Username,
-        avatar_url = WEBHOOK_CONFIG.Avatar,
-        embeds = {{
-            title = "🎣 Fish Detected",
-            color = WEBHOOK_CONFIG.EmbedColor,
-            fields = {
-                {name="Player", value=player, inline=true},
-                {name="Fish", value=fish, inline=true},
-                {name="Rarity", value=rarity, inline=true},
-                {name="Weight", value=tostring(weight), inline=true},
-                {name="Server", value=JobId, inline=true}
-            },
-            footer = {text="Fish It | AWAA BOT"}
-        }}
-    })
+local function findRarity(text)
+    for _,r in pairs(RARITY_LIST) do
+        if tostring(text):lower():find(r:lower()) then
+            return r
+        end
+    end
 end
 
---================ DETECTOR =================--
-local function Parse(data)
-    if typeof(data)~="table" then return end
-    local fish = data.FishName or data.Name or "Unknown"
-    local rarity = data.Rarity or "Unknown"
-    local weight = data.Weight or "?"
-    local player =
-        typeof(data.Player)=="Instance" and data.Player.Name or
-        data.PlayerName or "Unknown"
+local function parseArgs(args)
+    local fish, rarity, weight, player
 
-    SendWebhook(player, fish, weight, rarity)
+    for _,v in pairs(args) do
+        if typeof(v) == "string" then
+            rarity = rarity or findRarity(v)
+            fish = fish or v
+        elseif typeof(v) == "number" then
+            weight = weight or v
+        elseif typeof(v) == "Instance" and v:IsA("Player") then
+            player = v.Name
+        elseif typeof(v) == "table" then
+            fish = v.FishName or v.Name or fish
+            rarity = v.Rarity or rarity
+            weight = v.Weight or weight
+            player = v.PlayerName or player
+        end
+    end
+
+    if fish and rarity then
+        sendWebhook(player or "Unknown", fish, weight or "?", rarity)
+    end
 end
 
+--================ REMOTE LISTENER =================--
 for _,v in pairs(ReplicatedStorage:GetDescendants()) do
     if v:IsA("RemoteEvent") then
         v.OnClientEvent:Connect(function(...)
-            for _,arg in pairs({...}) do
-                Parse(arg)
-            end
+            parseArgs({...})
         end)
     end
 end
@@ -84,7 +90,7 @@ local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "AWAA_BOT"
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,280,0,300)
+main.Size = UDim2.new(0,260,0,90)
 main.Position = UDim2.new(0.03,0,0.3,0)
 main.BackgroundColor3 = Color3.fromRGB(15,15,15)
 main.BackgroundTransparency = 0.2
@@ -95,60 +101,20 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(180,0,0)
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,0,30)
-title.Text = "AWAA BOT"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.Size = UDim2.new(1,0,1,0)
+title.Text = "AWAA BOT\nMOBILE MAX"
 title.TextColor3 = Color3.fromRGB(255,80,80)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
 title.BackgroundTransparency = 1
-
--- Toggle maker
-local y = 40
-local function Toggle(name)
-    local b = Instance.new("TextButton", main)
-    b.Size = UDim2.new(0.9,0,0,24)
-    b.Position = UDim2.new(0.05,0,0,y)
-    b.Text = name..": OFF"
-    b.TextSize = 12
-    b.Font = Enum.Font.Gotham
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BackgroundColor3 = Color3.fromRGB(40,0,0)
-    b.BackgroundTransparency = 0.1
-
-    b.MouseButton1Click:Connect(function()
-        EnabledRarity[name] = not EnabledRarity[name]
-        b.Text = name..": "..(EnabledRarity[name] and "ON" or "OFF")
-    end)
-    y += 28
-end
-
-Toggle("Legendary")
-Toggle("Mythic")
-Toggle("Secret")
+title.TextWrapped = true
 
 -- MINIMIZE (KOTAK)
 local minimized = false
-local mini = Instance.new("TextButton", main)
-mini.Size = UDim2.new(0,60,0,24)
-mini.Position = UDim2.new(0.05,0,1,-60)
-mini.Text = "MIN"
-
-mini.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    main.Size = minimized and UDim2.new(0,70,0,70) or UDim2.new(0,280,0,300)
-    for _,v in pairs(main:GetChildren()) do
-        if v~=mini and v~=title and v:IsA("GuiObject") then
-            v.Visible = not minimized
-        end
+main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        minimized = not minimized
+        main.Size = minimized and UDim2.new(0,70,0,70) or UDim2.new(0,260,0,90)
+        title.Text = minimized and "AWAA" or "AWAA BOT\nMOBILE MAX"
     end
-    title.Text = minimized and "AWAA" or "AWAA BOT"
-end)
-
--- CLOSE
-local close = Instance.new("TextButton", main)
-close.Size = UDim2.new(0,60,0,24)
-close.Position = UDim2.new(0.7,0,1,-60)
-close.Text = "X"
-close.MouseButton1Click:Connect(function()
-    gui:Destroy()
 end)
