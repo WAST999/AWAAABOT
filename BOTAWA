@@ -1,87 +1,112 @@
--- AWAA BOT - FULL FIXED (Mobile)
-
-getgenv().WebhookURL = "ISI_WEBHOOK_KAMU_DI_SINI"
+-- AWAA BOT - DELTA SAFE (Mobile Executor)
 
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
+-- =======================
+-- CONFIG
+-- =======================
 local Enabled = {
-    Common=true, Rare=true, Epic=true,
-    Legendary=true, Mythic=true, Secret=true
+    Legendary = true,
+    Mythic = true,
+    Secret = true
 }
 
-local function getRequest()
-    return http_request or request or (syn and syn.request)
-end
-
-local function sendWebhook(data)
-    local req = getRequest()
-    if not req then return end
-    req({
-        Url = getgenv().WebhookURL,
-        Method = "POST",
-        Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode(data)
-    })
-end
-
+-- =======================
 -- UI
-local gui = Instance.new("ScreenGui",game.CoreGui)
-local main = Instance.new("Frame",gui)
-main.Size = UDim2.fromScale(0.3,0.4)
-main.Position = UDim2.fromScale(0.35,0.3)
-main.BackgroundColor3 = Color3.fromRGB(15,15,15)
-main.BackgroundTransparency = 0.15
-main.Name = "AWAA_BOT"
+-- =======================
+local gui = Instance.new("ScreenGui")
+gui.Name = "AWAA_BOT"
+gui.Parent = game.CoreGui
 
-local title = Instance.new("TextLabel",main)
-title.Size = UDim2.new(1,0,0.15,0)
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromScale(0.32, 0.4)
+main.Position = UDim2.fromScale(0.34, 0.3)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0.18, 0)
 title.Text = "AWAA BOT"
-title.TextColor3 = Color3.fromRGB(255,0,0)
+title.TextScaled = true
+title.TextColor3 = Color3.fromRGB(255, 0, 0)
 title.BackgroundTransparency = 1
 
-local minimized = false
-local minimize = Instance.new("TextButton",main)
-minimize.Size = UDim2.new(0.15,0,0.15,0)
-minimize.Position = UDim2.new(0.7,0,0,0)
+local minimize = Instance.new("TextButton", main)
+minimize.Size = UDim2.new(0.15, 0, 0.18, 0)
+minimize.Position = UDim2.new(0.7, 0, 0, 0)
 minimize.Text = "_"
+minimize.BackgroundColor3 = Color3.fromRGB(30,30,30)
+minimize.TextColor3 = Color3.new(1,1,1)
 
-local close = Instance.new("TextButton",main)
-close.Size = UDim2.new(0.15,0,0.15,0)
-close.Position = UDim2.new(0.85,0,0,0)
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0.15, 0, 0.18, 0)
+close.Position = UDim2.new(0.85, 0, 0, 0)
 close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(120,0,0)
+close.TextColor3 = Color3.new(1,1,1)
 
+local log = Instance.new("TextLabel", main)
+log.Size = UDim2.new(1, -10, 0.82, -10)
+log.Position = UDim2.new(0, 5, 0.18, 5)
+log.TextWrapped = true
+log.TextYAlignment = Top
+log.TextXAlignment = Left
+log.Text = "Menunggu ikan..."
+log.TextColor3 = Color3.new(1,1,1)
+log.BackgroundTransparency = 1
+log.TextSize = 14
+
+-- =======================
+-- MINIMIZE / CLOSE
+-- =======================
+local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
-    main.Size = minimized and UDim2.fromScale(0.15,0.15) or UDim2.fromScale(0.3,0.4)
+    main.Size = minimized and UDim2.fromScale(0.15,0.15) or UDim2.fromScale(0.32,0.4)
+    log.Visible = not minimized
 end)
 
 close.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
 
--- DETECTOR
-for _,v in pairs(workspace:GetDescendants()) do
-    if v:IsA("RemoteEvent") and string.find(string.lower(v.Name),"fish") then
-        v.OnClientEvent:Connect(function(info)
-            if typeof(info)=="table" and Enabled[info.Rarity] then
-                sendWebhook({
-                    username="AWAA BOT",
-                    embeds={{
-                        title="🎣 Fish Detected",
-                        color=16711680,
-                        fields={
-                            {name="Player",value=info.Player or "?"},
-                            {name="Fish",value=info.Fish or "?"},
-                            {name="Weight",value=tostring(info.Weight)},
-                            {name="Rarity",value=info.Rarity}
-                        }
-                    }}
-                })
+-- =======================
+-- NOTIFY
+-- =======================
+local function notify(txt)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "AWAA BOT",
+            Text = txt,
+            Duration = 5
+        })
+    end)
+end
+
+-- =======================
+-- FISH DETECT (SELF ONLY)
+-- =======================
+for _,v in pairs(game:GetDescendants()) do
+    if v:IsA("RemoteEvent") and string.find(string.lower(v.Name), "fish") then
+        v.OnClientEvent:Connect(function(data)
+            if typeof(data) == "table" then
+                local rarity = data.Rarity
+                if rarity and Enabled[rarity] then
+                    local text =
+                        "🎣 Ikan: "..tostring(data.Fish).."\n"..
+                        "⭐ Rarity: "..tostring(rarity).."\n"..
+                        "⚖️ Berat: "..tostring(data.Weight)
+
+                    log.Text = text
+                    notify("DAPAT "..rarity.."!")
+                end
             end
         end)
     end
 end
 
-print("AWAA BOT FULL Loaded")
+notify("AWAA BOT AKTIF (DELTA)")
+print("AWAA BOT DELTA SAFE LOADED")
