@@ -1,6 +1,6 @@
 --================================
--- Awaa Bot - Fish It Auto Webhook
--- Mythic & Secret Only
+-- Awaa Bot - Fish It AUTO Webhook
+-- NO ICON VERSION (STABLE)
 --================================
 
 -- SERVICES
@@ -12,17 +12,13 @@ local Player = Players.LocalPlayer
 local WEBHOOK_URL = ""
 local AUTO_RUNNING = false
 
--- ICON IMAGE (GANTI JIKA PERLU)
-local ICON_IMAGE = "https://i.imgur.com/8QZ7ZQy.png" -- placeholder
--- ⬆️ ganti dengan link gambar kamu
-
 -- TYPE COLOR
 local FishTypeColor = {
     Mythic = 15158332,
     Secret = 10181046
 }
 
--- FORMAT WEIGHT
+-- GET WEIGHT
 local function GetWeight(tool)
     if tool:FindFirstChild("Weight") and tool.Weight:IsA("NumberValue") then
         return string.format("%.2f kg", tool.Weight.Value)
@@ -30,7 +26,7 @@ local function GetWeight(tool)
     return "Unknown"
 end
 
--- DETECT TYPE
+-- DETECT TYPE (EDIT IF NEEDED)
 local function GetFishType(name)
     name = string.lower(name)
     if string.find(name, "secret") then
@@ -71,7 +67,7 @@ local function SendWebhook(fishName, fishWeight, fishType)
     end
 end
 
--- AUTO DETECT
+-- AUTO DETECT BACKPACK
 local function StartAuto()
     if AUTO_RUNNING then return end
     AUTO_RUNNING = true
@@ -93,35 +89,28 @@ local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "AwaaBotUI"
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 340, 0, 220)
-frame.Position = UDim2.new(0.5, -170, 0.5, -110)
+frame.Size = UDim2.new(0, 330, 0, 200)
+frame.Position = UDim2.new(0.5, -165, 0.5, -100)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.Active = true
 frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
-
--- ICON
-local icon = Instance.new("ImageLabel", frame)
-icon.Size = UDim2.new(0, 40, 0, 40)
-icon.Position = UDim2.new(0, 10, 0, 10)
-icon.BackgroundTransparency = 1
-icon.Image = ICON_IMAGE
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
 -- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Position = UDim2.new(0, 60, 0, 10)
-title.Size = UDim2.new(1, -120, 0, 40)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Position = UDim2.new(0, 10, 0, 5)
 title.BackgroundTransparency = 1
 title.Text = "Awaa Bot"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
-title.TextXAlignment = Left
+title.TextXAlignment = Center
 
 -- CLOSE BUTTON
 local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -40, 0, 10)
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -38, 0, 8)
 closeBtn.Text = "✖"
 closeBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 closeBtn.TextColor3 = Color3.new(1,1,1)
@@ -129,17 +118,17 @@ Instance.new("UICorner", closeBtn)
 
 -- MINIMIZE BUTTON
 local miniBtn = Instance.new("TextButton", frame)
-miniBtn.Size = UDim2.new(0, 30, 0, 30)
-miniBtn.Position = UDim2.new(1, -80, 0, 10)
+miniBtn.Size = UDim2.new(0, 28, 0, 28)
+miniBtn.Position = UDim2.new(1, -74, 0, 8)
 miniBtn.Text = "—"
-miniBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
+miniBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 miniBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", miniBtn)
 
 -- WEBHOOK BOX
 local box = Instance.new("TextBox", frame)
 box.Size = UDim2.new(1, -20, 0, 40)
-box.Position = UDim2.new(0, 10, 0, 70)
+box.Position = UDim2.new(0, 10, 0, 55)
 box.PlaceholderText = "Paste Discord Webhook URL"
 box.ClearTextOnFocus = false
 box.TextWrapped = true
@@ -150,7 +139,7 @@ Instance.new("UICorner", box)
 -- START BUTTON
 local startBtn = Instance.new("TextButton", frame)
 startBtn.Size = UDim2.new(1, -20, 0, 40)
-startBtn.Position = UDim2.new(0, 10, 0, 130)
+startBtn.Position = UDim2.new(0, 10, 0, 110)
 startBtn.Text = "START AUTO"
 startBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 150)
 startBtn.TextColor3 = Color3.new(1,1,1)
@@ -160,7 +149,7 @@ Instance.new("UICorner", startBtn)
 -- STATUS
 local status = Instance.new("TextLabel", frame)
 status.Size = UDim2.new(1, -20, 0, 25)
-status.Position = UDim2.new(0, 10, 0, 180)
+status.Position = UDim2.new(0, 10, 0, 160)
 status.BackgroundTransparency = 1
 status.TextColor3 = Color3.fromRGB(0,255,0)
 status.Font = Enum.Font.Gotham
@@ -173,6 +162,9 @@ startBtn.MouseButton1Click:Connect(function()
         StartAuto()
         status.Text = "AUTO ACTIVE ✅"
         startBtn.Text = "RUNNING"
+    else
+        status.Text = "Webhook kosong!"
+        status.TextColor3 = Color3.fromRGB(255,0,0)
     end
 end)
 
@@ -180,7 +172,7 @@ miniBtn.MouseButton1Click:Connect(function()
     frame.Visible = false
 
     local reopen = Instance.new("TextButton", gui)
-    reopen.Size = UDim2.new(0, 120, 0, 40)
+    reopen.Size = UDim2.new(0, 140, 0, 40)
     reopen.Position = UDim2.new(0, 10, 0.5, -20)
     reopen.Text = "Open Awaa Bot"
     reopen.BackgroundColor3 = Color3.fromRGB(90,0,150)
