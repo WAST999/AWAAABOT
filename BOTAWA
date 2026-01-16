@@ -1,5 +1,5 @@
 --================================
--- Fish It Webhook + UI (LUA)
+-- Fish It AUTO Webhook + UI
 -- Mythic & Secret ONLY
 --================================
 
@@ -8,33 +8,37 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
 
--- DEFAULT WEBHOOK
+-- WEBHOOK
 local WEBHOOK_URL = ""
 
 -- TYPE COLOR
 local FishTypeColor = {
-    Mythic = 15158332, -- merah
-    Secret = 10181046  -- ungu
+    Mythic = 15158332,
+    Secret = 10181046
 }
 
 -- FORMAT WEIGHT
-local function FormatWeight(weight)
-    if not weight then
-        return "Unknown"
+local function GetWeight(tool)
+    if tool:FindFirstChild("Weight") then
+        return string.format("%.2f kg", tool.Weight.Value)
     end
-    return string.format("%.2f kg", weight)
+    return "Unknown"
+end
+
+-- DETECT TYPE FROM NAME (EDIT JIKA PERLU)
+local function GetFishType(name)
+    name = string.lower(name)
+    if string.find(name, "secret") then
+        return "Secret"
+    elseif string.find(name, "myth") then
+        return "Mythic"
+    end
+    return nil
 end
 
 -- SEND WEBHOOK
-function SendFishWebhook(fishName, fishWeight, fishType)
-    if WEBHOOK_URL == "" then
-        warn("Webhook URL belum diisi!")
-        return
-    end
-
-    if fishType ~= "Mythic" and fishType ~= "Secret" then
-        fishType = "Mythic"
-    end
+local function SendWebhook(fishName, fishWeight, fishType)
+    if WEBHOOK_URL == "" then return end
 
     local data = {
         username = "🎣 Fish It Logger",
@@ -43,8 +47,8 @@ function SendFishWebhook(fishName, fishWeight, fishType)
             color = FishTypeColor[fishType],
             fields = {
                 { name = "👤 Player", value = Player.Name, inline = true },
-                { name = "🐟 Fish", value = fishName or "Unknown", inline = true },
-                { name = "⚖️ Weight", value = FormatWeight(fishWeight), inline = true },
+                { name = "🐟 Fish", value = fishName, inline = true },
+                { name = "⚖️ Weight", value = fishWeight, inline = true },
                 { name = "🌟 Type", value = fishType, inline = true }
             },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -62,76 +66,72 @@ function SendFishWebhook(fishName, fishWeight, fishType)
     end
 end
 
+-- AUTO DETECT FISH
+local function HookBackpack()
+    local Backpack = Player:WaitForChild("Backpack")
+
+    Backpack.ChildAdded:Connect(function(tool)
+        task.wait(0.2)
+
+        local fishType = GetFishType(tool.Name)
+        if fishType then
+            SendWebhook(
+                tool.Name,
+                GetWeight(tool),
+                fishType
+            )
+        end
+    end)
+end
+
 --================================
 -- UI
 --================================
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "FishItWebhookUI"
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "FishItAutoUI"
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 320, 0, 200)
-Frame.Position = UDim2.new(0.5, -160, 0.5, -100)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.Active = true
-Frame.Draggable = true
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 320, 0, 180)
+frame.Position = UDim2.new(0.5, -160, 0.5, -90)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.Active = true
+frame.Draggable = true
 
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundTransparency = 1
-Title.Text = "🎣 Fish It Webhook"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "🎣 Fish It AUTO Webhook"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
 
-local WebhookBox = Instance.new("TextBox", Frame)
-WebhookBox.Size = UDim2.new(1, -20, 0, 40)
-WebhookBox.Position = UDim2.new(0, 10, 0, 60)
-WebhookBox.PlaceholderText = "Paste Discord Webhook URL"
-WebhookBox.Text = ""
-WebhookBox.TextWrapped = true
-WebhookBox.ClearTextOnFocus = false
-WebhookBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-WebhookBox.TextColor3 = Color3.new(1,1,1)
-WebhookBox.Font = Enum.Font.Gotham
-WebhookBox.TextSize = 14
+local box = Instance.new("TextBox", frame)
+box.Size = UDim2.new(1,-20,0,40)
+box.Position = UDim2.new(0,10,0,55)
+box.PlaceholderText = "Paste Discord Webhook URL"
+box.ClearTextOnFocus = false
+box.TextWrapped = true
+box.BackgroundColor3 = Color3.fromRGB(40,40,40)
+box.TextColor3 = Color3.new(1,1,1)
 
-Instance.new("UICorner", WebhookBox).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
 
-local SaveButton = Instance.new("TextButton", Frame)
-SaveButton.Size = UDim2.new(1, -20, 0, 40)
-SaveButton.Position = UDim2.new(0, 10, 0, 120)
-SaveButton.Text = "SAVE WEBHOOK"
-SaveButton.BackgroundColor3 = Color3.fromRGB(90, 0, 150)
-SaveButton.TextColor3 = Color3.new(1,1,1)
-SaveButton.Font = Enum.Font.GothamBold
-SaveButton.TextSize = 14
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.new(1,-20,0,40)
+btn.Position = UDim2.new(0,10,0,105)
+btn.Text = "START AUTO LOG"
+btn.BackgroundColor3 = Color3.fromRGB(90,0,150)
+btn.TextColor3 = Color3.new(1,1,1)
+btn.Font = Enum.Font.GothamBold
 
-Instance.new("UICorner", SaveButton).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
-local Status = Instance.new("TextLabel", Frame)
-Status.Size = UDim2.new(1, -20, 0, 30)
-Status.Position = UDim2.new(0, 10, 0, 165)
-Status.BackgroundTransparency = 1
-Status.Text = ""
-Status.TextColor3 = Color3.fromRGB(0,255,0)
-Status.Font = Enum.Font.Gotham
-Status.TextSize = 12
-
-SaveButton.MouseButton1Click:Connect(function()
-    if WebhookBox.Text ~= "" then
-        WEBHOOK_URL = WebhookBox.Text
-        Status.Text = "Webhook saved!"
-    else
-        Status.Text = "Webhook kosong!"
-        Status.TextColor3 = Color3.fromRGB(255,0,0)
+btn.MouseButton1Click:Connect(function()
+    if box.Text ~= "" then
+        WEBHOOK_URL = box.Text
+        HookBackpack()
+        btn.Text = "AUTO ACTIVE ✅"
     end
 end)
-
---================================
--- CONTOH PAKAI (TEST)
---================================
--- SendFishWebhook("Ancient Shark", 12.4, "Mythic")
--- SendFishWebhook("Phantom Fish", 4.9, "Secret")
