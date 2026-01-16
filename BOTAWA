@@ -1,120 +1,87 @@
---==================================================
--- AWAA BOT - MOBILE MAX (ALL FISH)
---==================================================
+-- AWAA BOT - FULL FIXED (Mobile)
+
+getgenv().WebhookURL = "ISI_WEBHOOK_KAMU_DI_SINI"
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
-
 local LocalPlayer = Players.LocalPlayer
-local JobId = string.sub(game.JobId,1,8)
 
---================ WEBHOOK =================--
-local WEBHOOK_URL = "ISI_WEBHOOK_DISCORD_KAMU"
+local Enabled = {
+    Common=true, Rare=true, Epic=true,
+    Legendary=true, Mythic=true, Secret=true
+}
 
-local function sendWebhook(player, fish, weight, rarity)
-    local req = http_request or request or (syn and syn.request)
+local function getRequest()
+    return http_request or request or (syn and syn.request)
+end
+
+local function sendWebhook(data)
+    local req = getRequest()
     if not req then return end
-
     req({
-        Url = WEBHOOK_URL,
+        Url = getgenv().WebhookURL,
         Method = "POST",
         Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode({
-            username = "AWAA BOT",
-            embeds = {{
-                title = "🎣 Fish Detected",
-                color = 16711680,
-                fields = {
-                    {name="Player", value=player, inline=true},
-                    {name="Fish", value=fish, inline=true},
-                    {name="Rarity", value=rarity, inline=true},
-                    {name="Weight", value=tostring(weight), inline=true},
-                    {name="Server", value=JobId, inline=true}
-                },
-                footer = {text="Fish It | AWAA BOT"}
-            }}
-        })
+        Body = HttpService:JSONEncode(data)
     })
 end
 
---================ PARSER =================--
-local RARITY_LIST = {
-    "Common","Uncommon","Rare","Epic",
-    "Legendary","Mythic","Secret"
-}
+-- UI
+local gui = Instance.new("ScreenGui",game.CoreGui)
+local main = Instance.new("Frame",gui)
+main.Size = UDim2.fromScale(0.3,0.4)
+main.Position = UDim2.fromScale(0.35,0.3)
+main.BackgroundColor3 = Color3.fromRGB(15,15,15)
+main.BackgroundTransparency = 0.15
+main.Name = "AWAA_BOT"
 
-local function findRarity(text)
-    for _,r in pairs(RARITY_LIST) do
-        if tostring(text):lower():find(r:lower()) then
-            return r
-        end
-    end
-end
+local title = Instance.new("TextLabel",main)
+title.Size = UDim2.new(1,0,0.15,0)
+title.Text = "AWAA BOT"
+title.TextColor3 = Color3.fromRGB(255,0,0)
+title.BackgroundTransparency = 1
 
-local function parseArgs(args)
-    local fish, rarity, weight, player
+local minimized = false
+local minimize = Instance.new("TextButton",main)
+minimize.Size = UDim2.new(0.15,0,0.15,0)
+minimize.Position = UDim2.new(0.7,0,0,0)
+minimize.Text = "_"
 
-    for _,v in pairs(args) do
-        if typeof(v) == "string" then
-            rarity = rarity or findRarity(v)
-            fish = fish or v
-        elseif typeof(v) == "number" then
-            weight = weight or v
-        elseif typeof(v) == "Instance" and v:IsA("Player") then
-            player = v.Name
-        elseif typeof(v) == "table" then
-            fish = v.FishName or v.Name or fish
-            rarity = v.Rarity or rarity
-            weight = v.Weight or weight
-            player = v.PlayerName or player
-        end
-    end
+local close = Instance.new("TextButton",main)
+close.Size = UDim2.new(0.15,0,0.15,0)
+close.Position = UDim2.new(0.85,0,0,0)
+close.Text = "X"
 
-    if fish and rarity then
-        sendWebhook(player or "Unknown", fish, weight or "?", rarity)
-    end
-end
+minimize.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    main.Size = minimized and UDim2.fromScale(0.15,0.15) or UDim2.fromScale(0.3,0.4)
+end)
 
---================ REMOTE LISTENER =================--
-for _,v in pairs(ReplicatedStorage:GetDescendants()) do
-    if v:IsA("RemoteEvent") then
-        v.OnClientEvent:Connect(function(...)
-            parseArgs({...})
+close.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+-- DETECTOR
+for _,v in pairs(workspace:GetDescendants()) do
+    if v:IsA("RemoteEvent") and string.find(string.lower(v.Name),"fish") then
+        v.OnClientEvent:Connect(function(info)
+            if typeof(info)=="table" and Enabled[info.Rarity] then
+                sendWebhook({
+                    username="AWAA BOT",
+                    embeds={{
+                        title="🎣 Fish Detected",
+                        color=16711680,
+                        fields={
+                            {name="Player",value=info.Player or "?"},
+                            {name="Fish",value=info.Fish or "?"},
+                            {name="Weight",value=tostring(info.Weight)},
+                            {name="Rarity",value=info.Rarity}
+                        }
+                    }}
+                })
+            end
         end)
     end
 end
 
---================ UI =================--
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "AWAA_BOT"
-
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,260,0,90)
-main.Position = UDim2.new(0.03,0,0.3,0)
-main.BackgroundColor3 = Color3.fromRGB(15,15,15)
-main.BackgroundTransparency = 0.2
-main.Active = true
-main.Draggable = true
-
-local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(180,0,0)
-
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,1,0)
-title.Text = "AWAA BOT\nMOBILE MAX"
-title.TextColor3 = Color3.fromRGB(255,80,80)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.BackgroundTransparency = 1
-title.TextWrapped = true
-
--- MINIMIZE (KOTAK)
-local minimized = false
-main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        minimized = not minimized
-        main.Size = minimized and UDim2.new(0,70,0,70) or UDim2.new(0,260,0,90)
-        title.Text = minimized and "AWAA" or "AWAA BOT\nMOBILE MAX"
-    end
-end)
+print("AWAA BOT FULL Loaded")
