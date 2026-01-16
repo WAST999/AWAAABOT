@@ -3,19 +3,15 @@ repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
-local Request = request or http_request or (syn and syn.request)
-assert(Request, "Executor tidak support http request")
+local Request = http_request or request or (syn and syn.request)
+assert(Request, "Delta tidak support request")
 
 -- ================= CONFIG =================
 _G.AwaaBot = {
     Webhook = "",
     TierEnabled = {
-        Common = false,
-        Rare = false,
-        Epic = false,
-        Legendary = false,
-        Mythic = false,
-        Secret = false
+        Common=false,Rare=false,Epic=false,
+        Legendary=false,Mythic=false,Secret=false
     }
 }
 
@@ -24,32 +20,30 @@ local function TierAllowed(tier)
     for _,v in pairs(_G.AwaaBot.TierEnabled) do
         if v then return _G.AwaaBot.TierEnabled[tier] end
     end
-    return true -- kalau tidak pilih apa-apa = semua
+    return true
 end
 
-local function SendWebhook(fish, weight, tier)
+function SendWebhook(fish, weight, tier)
     if _G.AwaaBot.Webhook == "" then return end
     if not TierAllowed(tier) then return end
-
-    local data = {
-        username = "Awaa Bot",
-        embeds = {{
-            title = "🎣 Fish Obtained",
-            color = 16744448,
-            fields = {
-                {name="Fish", value=fish, inline=true},
-                {name="Weight", value=tostring(weight), inline=true},
-                {name="Tier", value=tier, inline=true},
-                {name="Player", value=Player.Name, inline=false}
-            }
-        }}
-    }
 
     Request({
         Url = _G.AwaaBot.Webhook,
         Method = "POST",
         Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode(data)
+        Body = HttpService:JSONEncode({
+            username = "Awaa Bot",
+            embeds = {{
+                title = "🎣 Fish Obtained",
+                color = 16744448,
+                fields = {
+                    {name="Fish",value=fish,inline=true},
+                    {name="Weight",value=tostring(weight),inline=true},
+                    {name="Tier",value=tier,inline=true},
+                    {name="Player",value=Player.Name,inline=false}
+                }
+            }}
+        })
     })
 end
 
@@ -66,7 +60,7 @@ local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.32,0.38)
+frame.Size = UDim2.fromScale(0.32,0.4)
 frame.Position = UDim2.fromScale(0.34,0.3)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BackgroundTransparency = 0.25
@@ -111,63 +105,69 @@ content.Position = UDim2.fromScale(0,0.14)
 content.Size = UDim2.fromScale(1,0.86)
 content.BackgroundTransparency = 1
 
--- WEBHOOK BOX
+-- WEBHOOK BOX (SMART FONT)
 local box = Instance.new("TextBox", content)
 box.PlaceholderText = "Discord Webhook URL"
-box.Size = UDim2.fromScale(0.9,0.14)
+box.Size = UDim2.fromScale(0.9,0.12)
 box.Position = UDim2.fromScale(0.05,0.03)
-box.TextSize = 14
 box.ClearTextOnFocus = false
 box.BackgroundColor3 = Color3.fromRGB(45,45,45)
 box.BackgroundTransparency = 0.2
 box.TextColor3 = Color3.new(1,1,1)
+box.Font = Enum.Font.Gotham
+box.TextSize = 14
+
+box:GetPropertyChangedSignal("Text"):Connect(function()
+    local len = #box.Text
+    box.TextSize = math.clamp(18 - len/10, 10, 14)
+end)
 
 box.FocusLost:Connect(function()
     _G.AwaaBot.Webhook = box.Text
 end)
 
+-- TEST BUTTON
+local test = Instance.new("TextButton", content)
+test.Size = UDim2.fromScale(0.9,0.1)
+test.Position = UDim2.fromScale(0.05,0.18)
+test.Text = "TEST WEBHOOK"
+test.TextSize = 13
+test.BackgroundColor3 = Color3.fromRGB(200,90,50)
+test.TextColor3 = Color3.new(1,1,1)
+
+test.MouseButton1Click:Connect(function()
+    SendWebhook("TEST FISH", 99.9, "Mythic")
+end)
+
 -- TIER TOGGLES
 local tiers = {"Common","Rare","Epic","Legendary","Mythic","Secret"}
+for i,t in ipairs(tiers) do
+    local b = Instance.new("TextButton", content)
+    b.Size = UDim2.fromScale(0.42,0.085)
+    b.Position = UDim2.fromScale(i%2==1 and 0.05 or 0.53, 0.32 + math.floor((i-1)/2)*0.095)
+    b.Text = t.." : OFF"
+    b.TextSize = 12
+    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    b.TextColor3 = Color3.new(1,1,1)
 
-for i,tier in ipairs(tiers) do
-    local btn = Instance.new("TextButton", content)
-    btn.Size = UDim2.fromScale(0.42,0.1)
-    btn.Position = UDim2.fromScale(i%2==1 and 0.05 or 0.53, 0.22 + math.floor((i-1)/2)*0.11)
-    btn.Text = tier.." : OFF"
-    btn.TextSize = 13
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    btn.BackgroundTransparency = 0.25
-    btn.TextColor3 = Color3.new(1,1,1)
-
-    btn.MouseButton1Click:Connect(function()
-        _G.AwaaBot.TierEnabled[tier] = not _G.AwaaBot.TierEnabled[tier]
-        btn.Text = tier.." : "..(_G.AwaaBot.TierEnabled[tier] and "ON" or "OFF")
-        btn.BackgroundColor3 = _G.AwaaBot.TierEnabled[tier]
-            and Color3.fromRGB(200,90,50)
-            or Color3.fromRGB(60,60,60)
+    b.MouseButton1Click:Connect(function()
+        _G.AwaaBot.TierEnabled[t] = not _G.AwaaBot.TierEnabled[t]
+        b.Text = t.." : "..(_G.AwaaBot.TierEnabled[t] and "ON" or "OFF")
+        b.BackgroundColor3 = _G.AwaaBot.TierEnabled[t]
+            and Color3.fromRGB(200,90,50) or Color3.fromRGB(60,60,60)
     end)
 end
 
--- INFO
-local info = Instance.new("TextLabel", content)
-info.Size = UDim2.fromScale(0.9,0.12)
-info.Position = UDim2.fromScale(0.05,0.82)
-info.BackgroundTransparency = 1
-info.TextSize = 12
-info.TextWrapped = true
-info.TextColor3 = Color3.fromRGB(220,220,220)
-info.Text = "Pilih BANYAK tier sekaligus\nJika semua OFF = kirim semua ikan"
-
--- BUTTONS
+-- MINIMIZE TO BOX
 local minimized = false
 mini.MouseButton1Click:Connect(function()
     minimized = not minimized
     content.Visible = not minimized
-    frame.Size = minimized and UDim2.fromScale(0.32,0.18) or UDim2.fromScale(0.32,0.38)
+    frame.Size = minimized and UDim2.fromScale(0.12,0.14) or UDim2.fromScale(0.32,0.4)
 end)
 
 close.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
 
-print("[Awaa Bot] Multi-tier loaded")
+print("[Awaa Bot] Loaded + Test Button Active")
