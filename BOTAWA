@@ -1,59 +1,62 @@
---================================
--- Awaa Bot - Fish It AUTO Webhook
--- FIXED UI (NO BLACK SCREEN)
---================================
+--==================================================
+-- Awaa Bot | Fish It
+-- AUTO Mythic & Secret Webhook
+-- Mobile UI | Red & Orange Theme
+--==================================================
 
 -- SERVICES
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
-
--- WAIT PLAYERGUI (PENTING!)
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- CONFIG
-local WEBHOOK_URL = ""
-local AUTO_RUNNING = false
-
--- TYPE COLOR
-local FishTypeColor = {
-    Mythic = 15158332,
-    Secret = 10181046
+-- GLOBAL CONFIG
+_G.AwaaBot = {
+    Webhook = "",
+    Running = false
 }
 
--- GET WEIGHT
-local function GetWeight(tool)
-    if tool:FindFirstChild("Weight") and tool.Weight:IsA("NumberValue") then
-        return string.format("%.2f kg", tool.Weight.Value)
+-- COLOR BY TYPE
+local TypeColor = {
+    Mythic = 16724736, -- ORANGE
+    Secret = 16711680  -- RED
+}
+
+--================================
+-- UTIL
+--================================
+local function getWeight(tool)
+    for _,v in pairs(tool:GetChildren()) do
+        if v:IsA("NumberValue") then
+            return string.format("%.2f kg", v.Value)
+        end
     end
     return "Unknown"
 end
 
--- DETECT TYPE
-local function GetFishType(name)
-    name = string.lower(name)
-    if string.find(name, "secret") then
-        return "Secret"
-    elseif string.find(name, "myth") then
+local function getFishType(name)
+    local n = string.lower(name)
+    if n:find("myth") then
         return "Mythic"
+    elseif n:find("secret") then
+        return "Secret"
     end
     return nil
 end
 
--- SEND WEBHOOK
-local function SendWebhook(fishName, fishWeight, fishType)
-    if WEBHOOK_URL == "" then return end
+local function sendWebhook(fish, weight, ftype)
+    if _G.AwaaBot.Webhook == "" then return end
 
     local data = {
         username = "Awaa Bot",
         embeds = {{
             title = "🎣 Fish Obtained!",
-            color = FishTypeColor[fishType],
+            color = TypeColor[ftype],
             fields = {
-                { name = "👤 Player", value = Player.Name, inline = true },
-                { name = "🐟 Fish", value = fishName, inline = true },
-                { name = "⚖️ Weight", value = fishWeight, inline = true },
-                { name = "🌟 Type", value = fishType, inline = true }
+                {name="👤 Player", value=Player.Name, inline=true},
+                {name="🐟 Fish", value=fish, inline=true},
+                {name="⚖️ Weight", value=weight, inline=true},
+                {name="🌟 Type", value=ftype, inline=true},
             },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
@@ -62,125 +65,146 @@ local function SendWebhook(fishName, fishWeight, fishType)
     local req = http_request or request or syn.request
     if req then
         req({
-            Url = WEBHOOK_URL,
+            Url = _G.AwaaBot.Webhook,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
+            Headers = {["Content-Type"]="application/json"},
             Body = HttpService:JSONEncode(data)
         })
     end
 end
 
--- AUTO DETECT
-local function StartAuto()
-    if AUTO_RUNNING then return end
-    AUTO_RUNNING = true
+--================================
+-- AUTO DETECT FISH
+--================================
+local function startAuto()
+    if _G.AwaaBot.Running then return end
+    _G.AwaaBot.Running = true
 
     local Backpack = Player:WaitForChild("Backpack")
     Backpack.ChildAdded:Connect(function(tool)
         task.wait(0.2)
-        local fishType = GetFishType(tool.Name)
-        if fishType then
-            SendWebhook(tool.Name, GetWeight(tool), fishType)
+        local ftype = getFishType(tool.Name)
+        if ftype then
+            sendWebhook(tool.Name, getWeight(tool), ftype)
         end
     end)
 end
 
-    -- UI SAFE MOBILE FIX
-local gui = Instance.new("ScreenGui")
+--================================
+-- UI (MOBILE PANEL)
+--================================
+local gui = Instance.new("ScreenGui", PlayerGui)
 gui.Name = "AwaaBotUI"
 gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
-gui.Parent = PlayerGui
 
-local frame = Instance.new("Frame")
-frame.Parent = gui
-frame.Size = UDim2.fromScale(0.45, 0.4) -- AUTO SCALE
-frame.Position = UDim2.fromScale(0.52, 0.05) -- KANAN ATAS
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+local panel = Instance.new("Frame", gui)
+panel.Size = UDim2.fromScale(0.32, 0.55)
+panel.Position = UDim2.fromScale(0.66, 0.2)
+panel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+panel.Active = true
+panel.Draggable = true
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0,14)
+Instance.new("UIScale", panel).Scale = 0.9
 
--- UI SCALE (PENTING HP)
-local scale = Instance.new("UIScale", frame)
-scale.Scale = 0.9
+-- TOP BAR
+local top = Instance.new("Frame", panel)
+top.Size = UDim2.fromScale(1,0.15)
+top.BackgroundColor3 = Color3.fromRGB(180,40,20)
+Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
 
--- TITLE
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(1, 0.18)
+local title = Instance.new("TextLabel", top)
+title.Size = UDim2.fromScale(0.7,1)
+title.Position = UDim2.fromScale(0.05,0)
 title.BackgroundTransparency = 1
 title.Text = "Awaa Bot"
-title.TextColor3 = Color3.new(1,1,1)
-title.Font = Enum.Font.GothamBold
 title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.new(1,1,1)
 
--- CLOSE
-local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.fromScale(0.12, 0.18)
-closeBtn.Position = UDim2.fromScale(0.86, 0)
-closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
-closeBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", closeBtn)
+local close = Instance.new("TextButton", top)
+close.Size = UDim2.fromScale(0.18,0.7)
+close.Position = UDim2.fromScale(0.78,0.15)
+close.Text = "X"
+close.TextScaled = true
+close.BackgroundColor3 = Color3.fromRGB(120,0,0)
+close.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", close)
 
--- MINIMIZE
-local miniBtn = Instance.new("TextButton", frame)
-miniBtn.Size = UDim2.fromScale(0.12, 0.18)
-miniBtn.Position = UDim2.fromScale(0.72, 0)
-miniBtn.Text = "-"
-miniBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
-miniBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", miniBtn)
-
--- WEBHOOK BOX
-local box = Instance.new("TextBox", frame)
-box.Size = UDim2.fromScale(0.9, 0.25)
-box.Position = UDim2.fromScale(0.05, 0.25)
-box.PlaceholderText = "Discord Webhook"
+-- WEBHOOK INPUT
+local box = Instance.new("TextBox", panel)
+box.Size = UDim2.fromScale(0.9,0.2)
+box.Position = UDim2.fromScale(0.05,0.22)
+box.PlaceholderText = "Discord Webhook URL"
 box.ClearTextOnFocus = false
 box.TextWrapped = true
 box.TextScaled = true
-box.BackgroundColor3 = Color3.fromRGB(45,45,45)
+box.BackgroundColor3 = Color3.fromRGB(35,35,35)
 box.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", box)
 
 -- START
-local startBtn = Instance.new("TextButton", frame)
-startBtn.Size = UDim2.fromScale(0.9, 0.22)
-startBtn.Position = UDim2.fromScale(0.05, 0.55)
+local startBtn = Instance.new("TextButton", panel)
+startBtn.Size = UDim2.fromScale(0.9,0.18)
+startBtn.Position = UDim2.fromScale(0.05,0.48)
 startBtn.Text = "START AUTO"
-startBtn.BackgroundColor3 = Color3.fromRGB(90,0,150)
-startBtn.TextColor3 = Color3.new(1,1,1)
 startBtn.TextScaled = true
+startBtn.Font = Enum.Font.GothamBold
+startBtn.BackgroundColor3 = Color3.fromRGB(255,120,40)
+startBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", startBtn)
 
 -- STATUS
-local status = Instance.new("TextLabel", frame)
-status.Size = UDim2.fromScale(1, 0.15)
-status.Position = UDim2.fromScale(0, 0.8)
+local status = Instance.new("TextLabel", panel)
+status.Size = UDim2.fromScale(0.9,0.12)
+status.Position = UDim2.fromScale(0.05,0.7)
 status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(0,255,0)
-status.Text = ""
+status.Text = "Status: Idle"
 status.TextScaled = true
+status.TextColor3 = Color3.fromRGB(255,170,80)
 
--- MINIMIZE LOGIC
-miniBtn.MouseButton1Click:Connect(function()
-    frame.Visible = false
-    local open = Instance.new("TextButton", gui)
-    open.Size = UDim2.fromScale(0.25, 0.08)
-    open.Position = UDim2.fromScale(0.7, 0.5)
-    open.Text = "Open Awaa Bot"
-    open.BackgroundColor3 = Color3.fromRGB(90,0,150)
-    open.TextColor3 = Color3.new(1,1,1)
-    open.TextScaled = true
-    Instance.new("UICorner", open)
+-- MINIMIZE
+local mini = Instance.new("TextButton", panel)
+mini.Size = UDim2.fromScale(0.9,0.12)
+mini.Position = UDim2.fromScale(0.05,0.84)
+mini.Text = "MINIMIZE"
+mini.TextScaled = true
+mini.BackgroundColor3 = Color3.fromRGB(120,60,30)
+mini.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", mini)
 
-    open.MouseButton1Click:Connect(function()
-        frame.Visible = true
-        open:Destroy()
+-- OPEN BUTTON
+local openBtn
+
+mini.MouseButton1Click:Connect(function()
+    panel.Visible = false
+    openBtn = Instance.new("TextButton", gui)
+    openBtn.Size = UDim2.fromScale(0.22,0.08)
+    openBtn.Position = UDim2.fromScale(0.72,0.5)
+    openBtn.Text = "Open Awaa Bot"
+    openBtn.TextScaled = true
+    openBtn.BackgroundColor3 = Color3.fromRGB(200,80,30)
+    openBtn.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", openBtn)
+
+    openBtn.MouseButton1Click:Connect(function()
+        panel.Visible = true
+        openBtn:Destroy()
     end)
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
+close.MouseButton1Click:Connect(function()
     gui:Destroy()
+end)
+
+-- START LOGIC
+startBtn.MouseButton1Click:Connect(function()
+    if box.Text ~= "" then
+        _G.AwaaBot.Webhook = box.Text
+        startAuto()
+        status.Text = "Status: AUTO ACTIVE"
+        startBtn.Text = "RUNNING"
+    else
+        status.Text = "Status: Webhook kosong!"
+    end
 end)
