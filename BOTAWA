@@ -1,177 +1,121 @@
---==================================================
--- Awaa Bot | Fish It
--- Sidebar UI + Tier Filter + Auto Webhook
---==================================================
+-- =========================
+-- Awaa Bot | Fish Webhook
+-- =========================
 
--- SERVICES
+repeat task.wait() until game:IsLoaded()
+
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
 
+-- =========================
+-- REQUEST HANDLER (AUTO)
+-- =========================
+local Request = request or http_request or (syn and syn.request)
+assert(Request, "Executor kamu tidak support request")
+
+-- =========================
 -- CONFIG
-_G.Awaa = {
+-- =========================
+_G.AwaaBot = {
     Webhook = "",
-    EnabledTiers = {
-        Common = false,
-        Rare = false,
-        Epic = false,
-        Legendary = true,
+    TierFilter = {
         Mythic = true,
         Secret = true
-    },
-    Running = false
+    }
 }
 
--- TIER COLOR
-local TierColor = {
-    Common = 9807270,
-    Rare = 3447003,
-    Epic = 10181046,
-    Legendary = 15844367,
-    Mythic = 15105570,
-    Secret = 16711680
-}
-
---================================
--- FISH DETECT
---================================
-local function getTier(name)
-    name = name:lower()
-    if name:find("secret") then return "Secret"
-    elseif name:find("myth") then return "Mythic"
-    elseif name:find("legend") then return "Legendary"
-    elseif name:find("epic") then return "Epic"
-    elseif name:find("rare") then return "Rare"
-    else return "Common" end
-end
-
-local function getWeight(tool)
-    for _,v in pairs(tool:GetChildren()) do
-        if v:IsA("NumberValue") then
-            return string.format("%.2f kg", v.Value)
-        end
-    end
-    return "Unknown"
-end
-
-local function sendWebhook(fish, weight, tier)
-    if _G.Awaa.Webhook == "" then return end
+-- =========================
+-- SEND WEBHOOK
+-- =========================
+local function SendWebhook(fish, weight, tier)
+    if _G.AwaaBot.Webhook == "" then return end
 
     local data = {
         username = "Awaa Bot",
         embeds = {{
-            title = "🎣 Fish Obtained",
-            color = TierColor[tier],
+            title = "🎣 Fish Obtained!",
+            color = tier == "Secret" and 16711680 or 8388736,
             fields = {
-                {name="👤 Player", value=Player.Name, inline=true},
                 {name="🐟 Fish", value=fish, inline=true},
-                {name="⚖️ Weight", value=weight, inline=true},
+                {name="⚖ Weight", value=tostring(weight), inline=true},
                 {name="⭐ Tier", value=tier, inline=true},
+                {name="👤 Player", value=Player.Name, inline=false}
             },
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            footer = {text = "Awaa Bot"}
         }}
     }
 
-    local req = http_request or request or syn.request
-    if req then
-        req({
-            Url = _G.Awaa.Webhook,
-            Method = "POST",
-            Headers = {["Content-Type"]="application/json"},
-            Body = HttpService:JSONEncode(data)
-        })
-    end
+    Request({
+        Url = _G.AwaaBot.Webhook,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode(data)
+    })
 end
 
--- AUTO
-local function startAuto()
-    if _G.Awaa.Running then return end
-    _G.Awaa.Running = true
+-- =========================
+-- AUTO DETECT FISH (STABLE)
+-- =========================
+local Backpack = Player:WaitForChild("Backpack")
 
-    Player.Backpack.ChildAdded:Connect(function(tool)
-        task.wait(0.2)
-        local tier = getTier(tool.Name)
-        if _G.Awaa.EnabledTiers[tier] then
-            sendWebhook(tool.Name, getWeight(tool), tier)
+Backpack.ChildAdded:Connect(function(tool)
+    task.wait(0.2)
+
+    if not tool:IsA("Tool") then return end
+
+    local tier = tool:FindFirstChild("Tier")
+    local weight = tool:FindFirstChild("Weight")
+
+    if tier and weight then
+        local tierValue = tostring(tier.Value)
+
+        if _G.AwaaBot.TierFilter[tierValue] then
+            SendWebhook(tool.Name, weight.Value, tierValue)
         end
-    end)
-end
-
---================================
--- UI SIDEBAR
---================================
-local gui = Instance.new("ScreenGui", PlayerGui)
-gui.IgnoreGuiInset = true
-gui.ResetOnSpawn = false
-
-local sidebar = Instance.new("Frame", gui)
-sidebar.Size = UDim2.fromScale(0.18, 0.65)
-sidebar.Position = UDim2.fromScale(0.02, 0.18)
-sidebar.BackgroundColor3 = Color3.fromRGB(20,20,20)
-sidebar.Active = true
-sidebar.Draggable = true
-Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0,14)
-Instance.new("UIScale", sidebar).Scale = 0.9
-
--- TITLE
-local title = Instance.new("TextLabel", sidebar)
-title.Size = UDim2.fromScale(1,0.12)
-title.BackgroundTransparency = 1
-title.Text = "Awaa Bot"
-title.TextColor3 = Color3.fromRGB(255,140,60)
-title.Font = Enum.Font.GothamBold
-title.TextScaled = true
-
--- WEBHOOK BOX
-local box = Instance.new("TextBox", sidebar)
-box.Size = UDim2.fromScale(0.9,0.12)
-box.Position = UDim2.fromScale(0.05,0.14)
-box.PlaceholderText = "Webhook URL"
-box.TextScaled = true
-box.ClearTextOnFocus = false
-box.BackgroundColor3 = Color3.fromRGB(35,35,35)
-box.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", box)
-
--- TIER BUTTONS
-local y = 0.3
-for tier,_ in pairs(_G.Awaa.EnabledTiers) do
-    local btn = Instance.new("TextButton", sidebar)
-    btn.Size = UDim2.fromScale(0.9,0.08)
-    btn.Position = UDim2.fromScale(0.05,y)
-    btn.Text = tier .. " : OFF"
-    btn.TextScaled = true
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    btn.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", btn)
-
-    btn.MouseButton1Click:Connect(function()
-        _G.Awaa.EnabledTiers[tier] = not _G.Awaa.EnabledTiers[tier]
-        btn.Text = tier.." : "..(_G.Awaa.EnabledTiers[tier] and "ON" or "OFF")
-        btn.BackgroundColor3 = _G.Awaa.EnabledTiers[tier]
-            and Color3.fromRGB(255,100,40)
-            or Color3.fromRGB(60,60,60)
-    end)
-
-    y = y + 0.09
-end
-
--- START
-local start = Instance.new("TextButton", sidebar)
-start.Size = UDim2.fromScale(0.9,0.1)
-start.Position = UDim2.fromScale(0.05,0.85)
-start.Text = "START AUTO"
-start.TextScaled = true
-start.Font = Enum.Font.GothamBold
-start.BackgroundColor3 = Color3.fromRGB(180,60,30)
-start.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", start)
-
-start.MouseButton1Click:Connect(function()
-    if box.Text ~= "" then
-        _G.Awaa.Webhook = box.Text
-        startAuto()
-        start.Text = "RUNNING"
     end
 end)
+
+-- =========================
+-- SIMPLE UI (NO BUG)
+-- =========================
+local gui = Instance.new("ScreenGui", Player.PlayerGui)
+gui.Name = "AwaaBotUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromScale(0.3,0.25)
+frame.Position = UDim2.fromScale(0.35,0.35)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.fromScale(1,0.2)
+title.BackgroundTransparency = 1
+title.Text = "Awaa Bot - Webhook"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+
+local box = Instance.new("TextBox", frame)
+box.PlaceholderText = "Paste Discord Webhook URL"
+box.Size = UDim2.fromScale(0.9,0.25)
+box.Position = UDim2.fromScale(0.05,0.3)
+box.BackgroundColor3 = Color3.fromRGB(40,40,40)
+box.TextColor3 = Color3.new(1,1,1)
+box.TextWrapped = true
+
+box.FocusLost:Connect(function()
+    _G.AwaaBot.Webhook = box.Text
+end)
+
+local info = Instance.new("TextLabel", frame)
+info.Position = UDim2.fromScale(0.05,0.6)
+info.Size = UDim2.fromScale(0.9,0.3)
+info.BackgroundTransparency = 1
+info.Text = "Auto webhook\nTier: Mythic & Secret"
+info.TextColor3 = Color3.fromRGB(180,180,180)
+info.TextScaled = true
+
+print("[Awaa Bot] Loaded Successfully")
