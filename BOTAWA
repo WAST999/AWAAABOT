@@ -1,7 +1,6 @@
 --==================================================
 -- Awaa Bot | Fish It
--- AUTO Mythic & Secret Webhook
--- Mobile UI | Red & Orange Theme
+-- Sidebar UI + Tier Filter + Auto Webhook
 --==================================================
 
 -- SERVICES
@@ -10,21 +9,43 @@ local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- GLOBAL CONFIG
-_G.AwaaBot = {
+-- CONFIG
+_G.Awaa = {
     Webhook = "",
+    EnabledTiers = {
+        Common = false,
+        Rare = false,
+        Epic = false,
+        Legendary = true,
+        Mythic = true,
+        Secret = true
+    },
     Running = false
 }
 
--- COLOR BY TYPE
-local TypeColor = {
-    Mythic = 16724736, -- ORANGE
-    Secret = 16711680  -- RED
+-- TIER COLOR
+local TierColor = {
+    Common = 9807270,
+    Rare = 3447003,
+    Epic = 10181046,
+    Legendary = 15844367,
+    Mythic = 15105570,
+    Secret = 16711680
 }
 
 --================================
--- UTIL
+-- FISH DETECT
 --================================
+local function getTier(name)
+    name = name:lower()
+    if name:find("secret") then return "Secret"
+    elseif name:find("myth") then return "Mythic"
+    elseif name:find("legend") then return "Legendary"
+    elseif name:find("epic") then return "Epic"
+    elseif name:find("rare") then return "Rare"
+    else return "Common" end
+end
+
 local function getWeight(tool)
     for _,v in pairs(tool:GetChildren()) do
         if v:IsA("NumberValue") then
@@ -34,29 +55,19 @@ local function getWeight(tool)
     return "Unknown"
 end
 
-local function getFishType(name)
-    local n = string.lower(name)
-    if n:find("myth") then
-        return "Mythic"
-    elseif n:find("secret") then
-        return "Secret"
-    end
-    return nil
-end
-
-local function sendWebhook(fish, weight, ftype)
-    if _G.AwaaBot.Webhook == "" then return end
+local function sendWebhook(fish, weight, tier)
+    if _G.Awaa.Webhook == "" then return end
 
     local data = {
         username = "Awaa Bot",
         embeds = {{
-            title = "🎣 Fish Obtained!",
-            color = TypeColor[ftype],
+            title = "🎣 Fish Obtained",
+            color = TierColor[tier],
             fields = {
                 {name="👤 Player", value=Player.Name, inline=true},
                 {name="🐟 Fish", value=fish, inline=true},
                 {name="⚖️ Weight", value=weight, inline=true},
-                {name="🌟 Type", value=ftype, inline=true},
+                {name="⭐ Tier", value=tier, inline=true},
             },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
@@ -65,7 +76,7 @@ local function sendWebhook(fish, weight, ftype)
     local req = http_request or request or syn.request
     if req then
         req({
-            Url = _G.AwaaBot.Webhook,
+            Url = _G.Awaa.Webhook,
             Method = "POST",
             Headers = {["Content-Type"]="application/json"},
             Body = HttpService:JSONEncode(data)
@@ -73,138 +84,94 @@ local function sendWebhook(fish, weight, ftype)
     end
 end
 
---================================
--- AUTO DETECT FISH
---================================
+-- AUTO
 local function startAuto()
-    if _G.AwaaBot.Running then return end
-    _G.AwaaBot.Running = true
+    if _G.Awaa.Running then return end
+    _G.Awaa.Running = true
 
-    local Backpack = Player:WaitForChild("Backpack")
-    Backpack.ChildAdded:Connect(function(tool)
+    Player.Backpack.ChildAdded:Connect(function(tool)
         task.wait(0.2)
-        local ftype = getFishType(tool.Name)
-        if ftype then
-            sendWebhook(tool.Name, getWeight(tool), ftype)
+        local tier = getTier(tool.Name)
+        if _G.Awaa.EnabledTiers[tier] then
+            sendWebhook(tool.Name, getWeight(tool), tier)
         end
     end)
 end
 
 --================================
--- UI (MOBILE PANEL)
+-- UI SIDEBAR
 --================================
 local gui = Instance.new("ScreenGui", PlayerGui)
-gui.Name = "AwaaBotUI"
 gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
 
-local panel = Instance.new("Frame", gui)
-panel.Size = UDim2.fromScale(0.32, 0.55)
-panel.Position = UDim2.fromScale(0.66, 0.2)
-panel.BackgroundColor3 = Color3.fromRGB(20,20,20)
-panel.Active = true
-panel.Draggable = true
-Instance.new("UICorner", panel).CornerRadius = UDim.new(0,14)
-Instance.new("UIScale", panel).Scale = 0.9
+local sidebar = Instance.new("Frame", gui)
+sidebar.Size = UDim2.fromScale(0.18, 0.65)
+sidebar.Position = UDim2.fromScale(0.02, 0.18)
+sidebar.BackgroundColor3 = Color3.fromRGB(20,20,20)
+sidebar.Active = true
+sidebar.Draggable = true
+Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0,14)
+Instance.new("UIScale", sidebar).Scale = 0.9
 
--- TOP BAR
-local top = Instance.new("Frame", panel)
-top.Size = UDim2.fromScale(1,0.15)
-top.BackgroundColor3 = Color3.fromRGB(180,40,20)
-Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
-
-local title = Instance.new("TextLabel", top)
-title.Size = UDim2.fromScale(0.7,1)
-title.Position = UDim2.fromScale(0.05,0)
+-- TITLE
+local title = Instance.new("TextLabel", sidebar)
+title.Size = UDim2.fromScale(1,0.12)
 title.BackgroundTransparency = 1
 title.Text = "Awaa Bot"
-title.TextScaled = true
+title.TextColor3 = Color3.fromRGB(255,140,60)
 title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
 
-local close = Instance.new("TextButton", top)
-close.Size = UDim2.fromScale(0.18,0.7)
-close.Position = UDim2.fromScale(0.78,0.15)
-close.Text = "X"
-close.TextScaled = true
-close.BackgroundColor3 = Color3.fromRGB(120,0,0)
-close.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", close)
-
--- WEBHOOK INPUT
-local box = Instance.new("TextBox", panel)
-box.Size = UDim2.fromScale(0.9,0.2)
-box.Position = UDim2.fromScale(0.05,0.22)
-box.PlaceholderText = "Discord Webhook URL"
-box.ClearTextOnFocus = false
-box.TextWrapped = true
+-- WEBHOOK BOX
+local box = Instance.new("TextBox", sidebar)
+box.Size = UDim2.fromScale(0.9,0.12)
+box.Position = UDim2.fromScale(0.05,0.14)
+box.PlaceholderText = "Webhook URL"
 box.TextScaled = true
+box.ClearTextOnFocus = false
 box.BackgroundColor3 = Color3.fromRGB(35,35,35)
 box.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", box)
 
--- START
-local startBtn = Instance.new("TextButton", panel)
-startBtn.Size = UDim2.fromScale(0.9,0.18)
-startBtn.Position = UDim2.fromScale(0.05,0.48)
-startBtn.Text = "START AUTO"
-startBtn.TextScaled = true
-startBtn.Font = Enum.Font.GothamBold
-startBtn.BackgroundColor3 = Color3.fromRGB(255,120,40)
-startBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", startBtn)
+-- TIER BUTTONS
+local y = 0.3
+for tier,_ in pairs(_G.Awaa.EnabledTiers) do
+    local btn = Instance.new("TextButton", sidebar)
+    btn.Size = UDim2.fromScale(0.9,0.08)
+    btn.Position = UDim2.fromScale(0.05,y)
+    btn.Text = tier .. " : OFF"
+    btn.TextScaled = true
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", btn)
 
--- STATUS
-local status = Instance.new("TextLabel", panel)
-status.Size = UDim2.fromScale(0.9,0.12)
-status.Position = UDim2.fromScale(0.05,0.7)
-status.BackgroundTransparency = 1
-status.Text = "Status: Idle"
-status.TextScaled = true
-status.TextColor3 = Color3.fromRGB(255,170,80)
-
--- MINIMIZE
-local mini = Instance.new("TextButton", panel)
-mini.Size = UDim2.fromScale(0.9,0.12)
-mini.Position = UDim2.fromScale(0.05,0.84)
-mini.Text = "MINIMIZE"
-mini.TextScaled = true
-mini.BackgroundColor3 = Color3.fromRGB(120,60,30)
-mini.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", mini)
-
--- OPEN BUTTON
-local openBtn
-
-mini.MouseButton1Click:Connect(function()
-    panel.Visible = false
-    openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.fromScale(0.22,0.08)
-    openBtn.Position = UDim2.fromScale(0.72,0.5)
-    openBtn.Text = "Open Awaa Bot"
-    openBtn.TextScaled = true
-    openBtn.BackgroundColor3 = Color3.fromRGB(200,80,30)
-    openBtn.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", openBtn)
-
-    openBtn.MouseButton1Click:Connect(function()
-        panel.Visible = true
-        openBtn:Destroy()
+    btn.MouseButton1Click:Connect(function()
+        _G.Awaa.EnabledTiers[tier] = not _G.Awaa.EnabledTiers[tier]
+        btn.Text = tier.." : "..(_G.Awaa.EnabledTiers[tier] and "ON" or "OFF")
+        btn.BackgroundColor3 = _G.Awaa.EnabledTiers[tier]
+            and Color3.fromRGB(255,100,40)
+            or Color3.fromRGB(60,60,60)
     end)
-end)
 
-close.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
+    y = y + 0.09
+end
 
--- START LOGIC
-startBtn.MouseButton1Click:Connect(function()
+-- START
+local start = Instance.new("TextButton", sidebar)
+start.Size = UDim2.fromScale(0.9,0.1)
+start.Position = UDim2.fromScale(0.05,0.85)
+start.Text = "START AUTO"
+start.TextScaled = true
+start.Font = Enum.Font.GothamBold
+start.BackgroundColor3 = Color3.fromRGB(180,60,30)
+start.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", start)
+
+start.MouseButton1Click:Connect(function()
     if box.Text ~= "" then
-        _G.AwaaBot.Webhook = box.Text
+        _G.Awaa.Webhook = box.Text
         startAuto()
-        status.Text = "Status: AUTO ACTIVE"
-        startBtn.Text = "RUNNING"
-    else
-        status.Text = "Status: Webhook kosong!"
+        start.Text = "RUNNING"
     end
 end)
